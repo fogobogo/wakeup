@@ -25,6 +25,8 @@
 #include <unistd.h>
 
 /* gcc wakeup.c -o wakeup -lrt */
+#define SUSPEND_COMMAND "pm-suspend"
+
 
 int
 main(int argc, char *argv[])
@@ -115,7 +117,7 @@ main(int argc, char *argv[])
 
     printf("tick.\n");
 
-    while(1);
+    system(SUSPEND_COMMAND);
 
     /* never excecutes. needs a signal callback to work */
     printf("tock.\n");
