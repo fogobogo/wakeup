@@ -42,7 +42,6 @@ main(int argc, char *argv[])
 
     struct itimerspec wakeup;
 
-    int rv; /* return value */
     int errno;
 
     if(argc <= 1) {
@@ -89,11 +88,17 @@ main(int argc, char *argv[])
     min *= 60;
 
     /* init timer */
-    rv = timer_create(CLOCK_REALTIME_ALARM, NULL, &id);
+    if(timer_create(CLOCK_REALTIME_ALARM, NULL, &id)) {
+        perror("timer_create");
+        exit(1);
+    }
 
 
     /* init itimerspec */
-    rv = clock_gettime(CLOCK_REALTIME_ALARM, &wakeup.it_value);
+    if(clock_gettime(CLOCK_REALTIME_ALARM, &wakeup.it_value)) {
+        perror("clock_gettime");
+        exit(1);
+    }
 
     /* set itimerspec to some future time */
     wakeup.it_value.tv_sec += (hour + min + sec);
@@ -103,9 +108,8 @@ main(int argc, char *argv[])
     wakeup.it_interval.tv_nsec = 0;
 
     /* set timer */
-    rv = timer_settime(id, TIMER_ABSTIME, &wakeup, NULL);
-    if(rv < 0) {
-        perror("set time");
+    if(timer_settime(id, TIMER_ABSTIME, &wakeup, NULL)) {
+        perror("timer_settime");
         exit(1);
     }
 
