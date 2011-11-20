@@ -36,7 +36,6 @@ help(char *name)
     printf("-h\tprint this help.\n");
     printf("\n");
     printf("example: %s 1h20m30s\n", name);
-    printf("\n");
     printf("will (should) wake up the system from suspend in\n");
     printf("1 hour 20 minutes and 30 seconds.\n");
 }
@@ -111,7 +110,6 @@ main(int argc, char *argv[])
     {
         printf("I don't understand. :<\n");
         printf("try -h or --help for help\n");
-        printf("\n");
         exit(1);
     }
 
