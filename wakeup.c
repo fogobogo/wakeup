@@ -17,6 +17,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <ctype.h>
 #include <sys/types.h>
 #include <errno.h>
@@ -26,6 +27,19 @@
 
 /* gcc wakeup.c -o wakeup -lrt */
 #define SUSPEND_COMMAND "pm-suspend"
+
+void
+help(char *name)
+{
+    printf("usage: %s [time]\n", name);
+    printf("\n");
+    printf("-h\tprint this help.\n");
+    printf("\n");
+    printf("example: %s 1h20m30s\n", name);
+    printf("\n");
+    printf("will (should) wake up the system from suspend in\n");
+    printf("1 hour 20 minutes and 30 seconds.\n");
+}
 
 
 int
@@ -47,7 +61,7 @@ main(int argc, char *argv[])
     int errno;
 
     if(argc <= 1) {
-        printf("usage: %s [time]\n", argv[0]);
+        help(argv[0]);
         exit(1);
     }
 
@@ -55,8 +69,18 @@ main(int argc, char *argv[])
     for(i = 1; i < argc; i++) {
         arg = argv[i];
         c = 0;
-        while(arg[c] != '\0') { 
 
+        if(strcmp(argv[i],"--help") == 0) {
+            help(argv[0]);
+            exit(1);
+        }
+
+        else if(strcmp(argv[i], "-h") == 0) {
+            help(argv[0]);
+            exit(1);
+        }
+
+        while(arg[c] != '\0') {
             switch(arg[c]) {
                 case 'h': 
                     hour = accum;
@@ -83,15 +107,20 @@ main(int argc, char *argv[])
         } /* while end */
     }
 
-    printf("wakeup from suspend in: %u hours %u min %u sec\n", hour, min, sec);
-
-    /* convert to seconds */
-    hour *= 3600;
-    min *= 60;
+    if(hour == 0 && min == 0 && sec == 0)
+    {
+        printf("I don't understand. :<\n");
+        printf("try -h or --help for help\n");
+        printf("\n");
+        exit(1);
+    }
 
     /* init timer */
     if(timer_create(CLOCK_REALTIME_ALARM, NULL, &id)) {
-        perror("timer_create");
+        if(errno == EPERM) {
+            printf("Oops. Insufficent rights, can't do that. :/\n");
+        }
+        perror("");
         exit(1);
     }
 
@@ -101,6 +130,10 @@ main(int argc, char *argv[])
         perror("clock_gettime");
         exit(1);
     }
+
+    /* convert to seconds */
+    hour *= 3600;
+    min *= 60;
 
     /* set itimerspec to some future time */
     wakeup.it_value.tv_sec += (hour + min + sec);
@@ -115,6 +148,7 @@ main(int argc, char *argv[])
         exit(1);
     }
 
+    printf("Ok. will wakeup from suspend in: %u hours %u min %u sec\n", (hour / 3600), (min / 60), sec);
     printf("tick.\n");
 
     system(SUSPEND_COMMAND);
