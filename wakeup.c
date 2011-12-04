@@ -3,18 +3,19 @@
  *      it under the terms of the GNU General Public License as published by
  *      the Free Software Foundation; either version 2 of the License, or
  *      (at your option) any later version.
- * 
+ *
  *      This program is distributed in the hope that it will be useful,
  *      but WITHOUT ANY WARRANTY; without even the implied warranty of
  *      MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *      GNU General Public License for more details.
- *      
+ *
  *      You should have received a copy of the GNU General Public License
  *      along with this program; if not, write to the Free Software
  *      Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
  *      MA 02110-1301, USA.
  */
 
+#define _GNU_SOURCE
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -25,11 +26,13 @@
 #include <time.h>
 #include <unistd.h>
 #include <sys/wait.h>
+#include <getopt.h>
 
-/* gcc wakeup.c -o wakeup -lrt */
 #ifndef SUSPEND_COMMAND
 #  define SUSPEND_COMMAND "pm-suspend"
 #endif
+
+static long hour, min, sec;
 
 static void
 help(char *name)
@@ -68,18 +71,85 @@ do_suspend(void)
     }
 }
 
+static void
+parse_options(int argc, char **argv)
+{
+    int opt;
+    static struct option opts[] = {
+        { "help", no_argument, NULL, 'h' },
+        { 0, 0, 0, 0 }
+    };
+
+    while((opt = getopt_long(argc, argv, "h", opts, NULL)) != -1) {
+        switch(opt) {
+            case 'h':
+                help(argv[0]);
+                exit(1);
+                break;
+            default:
+            case '?':
+                exit(1);
+        }
+    }
+
+    /* optind is set globally */
+}
+
+static long
+parse_timefragment(const char *fragment)
+{
+    const char *f;
+    long accum = 0;
+
+    for(f = fragment; *f != '\0'; f++) {
+        switch(*f) {
+            case 'h':
+                hour += accum;
+                accum = 0;
+                break;
+            case 'm':
+                min += accum;
+                accum = 0;
+                break;
+            case 's':
+                sec += accum;
+                accum = 0;
+                break;
+            default:
+                if(isdigit(*f)) {
+                    accum += (*f - 48);
+
+                    /* look ahead */
+                    if(isdigit(f[1])) {
+                        accum *= 10;
+                    }
+                } else {
+                    fprintf(stderr, "illegal character in format: %c\n", *f);
+                    return -1;
+                }
+        }
+    }
+
+    return 0;
+}
+
+static long
+parse_timespec(int optind, int argc, char **argv)
+{
+    while(optind < argc) {
+        if(parse_timefragment(argv[optind]) < 0) {
+            fprintf(stderr, "failed to parse time: %s\n", argv[optind]);
+            return 1;
+        }
+        optind++;
+    }
+
+    return 0;
+}
+
 int
 main(int argc, char *argv[])
 {
-    int i, c;
-    int accum = 0;
-    unsigned int hour = 0;
-    unsigned int min = 0;
-    unsigned int sec = 0;
-
-    char *arg;
-    char tmp;
-
     timer_t id;
 
     struct itimerspec wakeup;
@@ -89,46 +159,9 @@ main(int argc, char *argv[])
         exit(1);
     }
 
-    /* god i hate arg parsing */
-    for(i = 1; i < argc; i++) {
-        arg = argv[i];
-        c = 0;
-
-        if(strcmp(argv[i],"--help") == 0) {
-            help(argv[0]);
-            exit(1);
-        }
-
-        else if(strcmp(argv[i], "-h") == 0) {
-            help(argv[0]);
-            exit(1);
-        }
-
-        while(arg[c] != '\0') {
-            switch(arg[c]) {
-                case 'h': 
-                    hour = accum;
-                    accum = 0;
-                case 'm':
-                    min = accum;
-                    accum = 0;
-                case 's':
-                    sec = accum;
-                    accum = 0;
-                default:
-                    if (isdigit(arg[c])) {
-                        /* copy char convert to int */
-                        tmp = arg[c];
-                        accum = accum + atoi(&tmp);
-
-                        if(isdigit(arg[c + 1])) {
-                            accum *= 10;
-                        }
-                    }
-                    break;
-            } /* switch end */
-            c++;
-        } /* while end */
+    parse_options(argc, argv);
+    if(parse_timespec(optind, argc, argv) < 0) {
+        exit(1);
     }
 
     if(hour == 0 && min == 0 && sec == 0)
@@ -154,12 +187,8 @@ main(int argc, char *argv[])
         exit(1);
     }
 
-    /* convert to seconds */
-    hour *= 3600;
-    min *= 60;
-
     /* set itimerspec to some future time */
-    wakeup.it_value.tv_sec += (hour + min + sec);
+    wakeup.it_value.tv_sec += sec + (min * 60) + (hour * 60 * 60);
     wakeup.it_value.tv_nsec = 0;
 
     wakeup.it_interval.tv_sec = 0;
@@ -171,7 +200,7 @@ main(int argc, char *argv[])
         exit(1);
     }
 
-    printf("Ok. will wakeup from suspend in: %u hours %u min %u sec\n", (hour / 3600), (min / 60), sec);
+    printf("Ok. will wakeup from suspend in: %ld hours %ld min %ld sec\n", hour, min, sec);
     printf("tick.\n");
 
     do_suspend();
