@@ -27,7 +27,9 @@
 #include <sys/wait.h>
 
 /* gcc wakeup.c -o wakeup -lrt */
-#define SUSPEND_COMMAND "pm-suspend"
+#ifndef SUSPEND_COMMAND
+#  define SUSPEND_COMMAND "pm-suspend"
+#endif
 
 void
 help(char *name)

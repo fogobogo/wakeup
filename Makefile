@@ -1,25 +1,23 @@
-CC=gcc
-CFLAGS=-Wall -Os
-LDFLAGS=-lrt
+CFLAGS  := -Wall -Wextra -pedantic -Os $(CFLAGS)
+LDFLAGS := -lrt $(LDFLAGS)
 
-PREFIX=/usr/local
-BINDIR=/bin
+ifndef PREFIX
+PREFIX   = /usr/local
+endif
 
-SOURCES=wakeup.c
-OBJECTS=$(SOURCES:.c=.o)
-EXECUTABLE=wakeup
+ifndef BINDIR
+BINDIR   = /bin
+endif
 
-all : obj bin
+SOURCES     = wakeup.c
+OBJECTS     = $(SOURCES:.c=.o)
+EXECUTABLE  = wakeup
 
-bin :
-	$(CC) $(OBJECTS) -o $(EXECUTABLE) $(CFLAGS) $(LDFLAGS)
+all: $(EXECUTABLE)
 
-obj:
-	$(CC) -c $(CFLAGS) $(SOURCES) -o $(OBJECTS)
-
-install: 
+install: all
 	install -d $(DESTDIR)$(PREFIX)$(BINDIR) # create directory if nonexistant 
 	install $(EXECUTABLE) $(DESTDIR)$(PREFIX)$(BINDIR)
 
 clean:
-	rm $(EXECUTABLE) $(OBJECTS)
+	$(RM) $(EXECUTABLE) $(OBJECTS)
