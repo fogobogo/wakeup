@@ -31,7 +31,7 @@
 #  define SUSPEND_COMMAND "pm-suspend"
 #endif
 
-void
+static void
 help(char *name)
 {
     printf("usage: %s [time]\n", name);
