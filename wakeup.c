@@ -24,6 +24,7 @@
 #include <signal.h>
 #include <time.h>
 #include <unistd.h>
+#include <sys/wait.h>
 
 /* gcc wakeup.c -o wakeup -lrt */
 #define SUSPEND_COMMAND "pm-suspend"
@@ -40,6 +41,30 @@ help(char *name)
     printf("1 hour 20 minutes and 30 seconds.\n");
 }
 
+static void
+do_suspend(void)
+{
+    pid_t pid;
+    int status;
+
+    pid = vfork();
+    if(pid == -1) {
+        perror("fork");
+        return;
+    }
+
+    if(pid == 0) {
+        execlp(SUSPEND_COMMAND, SUSPEND_COMMAND, NULL);
+        fprintf(stderr, "error: exec: %s\n", strerror(errno));
+        _exit(0);
+    }
+
+    while(wait(&status) != pid);
+    if(WIFEXITED(status) && WEXITSTATUS(status) != 0) {
+        fprintf(stderr, "error: %s exited with status %d\n", SUSPEND_COMMAND,
+            WEXITSTATUS(status));
+    }
+}
 
 int
 main(int argc, char *argv[])
@@ -149,7 +174,7 @@ main(int argc, char *argv[])
     printf("Ok. will wakeup from suspend in: %u hours %u min %u sec\n", (hour / 3600), (min / 60), sec);
     printf("tick.\n");
 
-    system(SUSPEND_COMMAND);
+    do_suspend();
 
     /* never excecutes. needs a signal callback to work */
     printf("tock.\n");
