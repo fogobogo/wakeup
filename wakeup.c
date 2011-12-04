@@ -84,8 +84,6 @@ main(int argc, char *argv[])
 
     struct itimerspec wakeup;
 
-    int errno;
-
     if(argc <= 1) {
         help(argv[0]);
         exit(1);
