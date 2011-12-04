@@ -37,10 +37,8 @@ static long hour, min, sec;
 static void
 help(char *name)
 {
-    printf("usage: %s [time]\n", name);
-    printf("\n");
-    printf("-h\tprint this help.\n");
-    printf("\n");
+    printf("usage: %s timespec\n\n", name);
+    printf("  -h, --help        display this help and exit\n\n");
     printf("example: %s 1h20m30s\n", name);
     printf("will (should) wake up the system from suspend in\n");
     printf("1 hour 20 minutes and 30 seconds.\n");
