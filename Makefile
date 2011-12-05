@@ -2,22 +2,24 @@ CFLAGS  := -Wall -Wextra -pedantic -Os $(CFLAGS)
 LDFLAGS := -lrt $(LDFLAGS)
 
 ifndef PREFIX
-PREFIX   = /usr/local
+	PREFIX = /usr/local
 endif
 
 ifndef BINDIR
-BINDIR   = /bin
+	BINDIR = /bin
 endif
 
-SOURCES     = wakeup.c
-OBJECTS     = $(SOURCES:.c=.o)
-EXECUTABLE  = wakeup
+SRC      = wakeup.c
+OBJ      = $(SRC:.c=.o)
+OUT      = wakeup
 
-all: $(EXECUTABLE)
+all: $(OUT)
+
+$(OUT): $(OBJ)
+	$(CC) -o $@ $(OBJ) $(LDFLAGS)
 
 install: all
-	install -d $(DESTDIR)$(PREFIX)$(BINDIR) # create directory if nonexistant 
-	install $(EXECUTABLE) $(DESTDIR)$(PREFIX)$(BINDIR)
+	install -Dm755 $(OUT) $(DESTDIR)$(PREFIX)$(BINDIR)/$(OUT)
 
 clean:
-	$(RM) $(EXECUTABLE) $(OBJECTS)
+	$(RM) $(OUT) $(OBJ)
