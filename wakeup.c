@@ -174,7 +174,7 @@ parse_timespec(int optind, int argc, char **argv, long *hour, long *min, long *s
 }
 
 static int
-create_alarm(struct itimerspec *wakeup, long seconds)
+create_alarm(struct itimerspec *wakeup, long *hour, long *min, long *sec)
 {
     timer_t id;
 
@@ -193,12 +193,15 @@ create_alarm(struct itimerspec *wakeup, long seconds)
     }
 
     /* set itimerspec to some future time */
-    wakeup->it_value.tv_sec += seconds;
+    wakeup->it_value.tv_sec += (*hour * 3600) + (*min * 60) + *sec;
 
     if(timer_settime(id, TIMER_ABSTIME, wakeup, NULL)) {
         perror("error: failed to set wakeup time");
         return 1;
     }
+
+    printf("timer set for wakeup in: %ld hours %ld min %ld sec\n",
+            *hour, *min, *sec);
 
     return 0;
 }
@@ -222,7 +225,7 @@ main(int argc, char *argv[])
         return EXIT_FAILURE;
     }
 
-    if(create_alarm(&wakeup, (hour * 3600) + (min * 60) + sec) != 0) {
+    if(create_alarm(&wakeup, &hour, &min, &sec) != 0) {
         return EXIT_FAILURE;
     }
 
