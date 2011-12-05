@@ -46,7 +46,7 @@ help(FILE *stream)
     exit(stream == stderr ? EXIT_FAILURE : EXIT_SUCCESS);
 }
 
-static void
+static int
 do_suspend(void)
 {
     pid_t pid;
@@ -55,7 +55,7 @@ do_suspend(void)
     pid = vfork();
     if(pid == -1) {
         perror("fork");
-        return;
+        return 1;
     }
 
     if(pid == 0) {
@@ -68,10 +68,13 @@ do_suspend(void)
     if(WIFEXITED(status) && WEXITSTATUS(status) != 0) {
         fprintf(stderr, "error: %s exited with status %d\n", SUSPEND_COMMAND,
             WEXITSTATUS(status));
+        return 1;
     }
+
+    return 0;
 }
 
-static void
+static int
 parse_options(int argc, char **argv)
 {
     int opt;
@@ -87,11 +90,12 @@ parse_options(int argc, char **argv)
                 break;
             default:
             case '?':
-                exit(1);
+                return 1;
         }
     }
 
     /* optind is set globally */
+    return 0;
 }
 
 static int
@@ -148,6 +152,11 @@ parse_timespec(int optind, int argc, char **argv, long *hour, long *min, long *s
         optind++;
     }
 
+    if((*hour + *min + *sec) == 0) {
+        fprintf(stderr, "error: duration must be non-zero\n");
+        return 1;
+    }
+
     return 0;
 }
 
@@ -188,26 +197,25 @@ main(int argc, char *argv[])
     long hour, min, sec;
 
     if(argc <= 1) {
+        fprintf(stderr, "error: no timespec specified (use -h or --help for help)\n");
         help(stderr);
     }
 
-    parse_options(argc, argv);
-    if(parse_timespec(optind, argc, argv, &hour, &min, &sec) != 0) {
+    if(parse_options(argc, argv) != 0) {
         return EXIT_FAILURE;
     }
 
-    if(hour == 0 && min == 0 && sec == 0) {
-        fprintf(stderr, "error: no timespec specified (use -h or --help for help)\n");
+    if(parse_timespec(optind, argc, argv, &hour, &min, &sec) != 0) {
         return EXIT_FAILURE;
     }
 
     if(create_alarm(&wakeup, (hour * 3600) + (min * 60) + sec) != 0) {
         return EXIT_FAILURE;
     }
-    do_suspend();
 
-    /* never excecutes. needs a signal callback to work */
-    printf("tock.\n");
+    if(do_suspend() != 0) {
+        return EXIT_FAILURE;
+    }
 
     return EXIT_SUCCESS;
 }
