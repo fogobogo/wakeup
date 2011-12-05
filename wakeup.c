@@ -37,11 +37,16 @@ extern char *program_invocation_short_name;
 static void
 help(FILE *stream)
 {
-    fprintf(stream, "usage: %s timespec\n\n", program_invocation_short_name);
-    fprintf(stream, "  -h, --help        display this help and exit\n\n");
-    fprintf(stream, "example: %s 1h20m30s\n", program_invocation_short_name);
-    fprintf(stream, "will (should) wake up the system from suspend in\n");
-    fprintf(stream, "1 hour 20 minutes and 30 seconds.\n");
+    fprintf(stream, "usage: %s <timespec>\n\n"
+            "  -h, --help        display this help and exit\n\n"
+            "timespec can be any combination of hours, minutes, and seconds\n"
+            "specified by hH, mM, and sS, respecitively.\n\n"
+            "Examples:\n"
+            "    %s 1h 20m 42S  # 1 hour, 20 minutes, 42 seconds\n"
+            "    %s 1h20M 2h    # 3 hours, 20 minutes\n",
+            program_invocation_short_name,
+            program_invocation_short_name,
+            program_invocation_short_name);
 
     exit(stream == stderr ? EXIT_FAILURE : EXIT_SUCCESS);
 }
