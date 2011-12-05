@@ -16,17 +16,17 @@
  */
 
 #define _GNU_SOURCE
+#include <ctype.h>
+#include <errno.h>
+#include <getopt.h>
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <ctype.h>
 #include <sys/types.h>
-#include <errno.h>
-#include <signal.h>
+#include <sys/wait.h>
 #include <time.h>
 #include <unistd.h>
-#include <sys/wait.h>
-#include <getopt.h>
 
 #ifndef SUSPEND_COMMAND
 #  define SUSPEND_COMMAND "pm-suspend"
