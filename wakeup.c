@@ -33,18 +33,21 @@
 #endif
 
 extern char *program_invocation_short_name;
+static const char *suspend_cmd;
 
 static void
 help(FILE *stream)
 {
     fprintf(stream, "usage: %s <timespec>\n\n"
-            "  -h, --help        display this help and exit\n\n"
+            "  -c, --command CMD     execute CMD instead of default '%s'\n"
+            "  -h, --help            display this help and exit\n\n"
             "timespec can be any combination of hours, minutes, and seconds\n"
             "specified by hH, mM, and sS, respecitively.\n\n"
             "Examples:\n"
             "    %s 1h 20m 42S  # 1 hour, 20 minutes, 42 seconds\n"
             "    %s 1h20M 2h    # 3 hours, 20 minutes\n",
             program_invocation_short_name,
+            SUSPEND_COMMAND,
             program_invocation_short_name,
             program_invocation_short_name);
 
@@ -52,7 +55,7 @@ help(FILE *stream)
 }
 
 static int
-do_suspend(void)
+do_suspend(const char *command)
 {
     pid_t pid;
     int status;
@@ -64,15 +67,15 @@ do_suspend(void)
     }
 
     if(pid == 0) {
-        execlp(SUSPEND_COMMAND, SUSPEND_COMMAND, NULL);
-        fprintf(stderr, "error: failed to execute %s: %s\n", SUSPEND_COMMAND,
+        execlp(command, command, NULL);
+        fprintf(stderr, "error: failed to execute %s: %s\n", command,
                 strerror(errno));
         _exit(0);
     }
 
     while(wait(&status) != pid);
     if(WIFEXITED(status) && WEXITSTATUS(status) != 0) {
-        fprintf(stderr, "error: %s exited with status %d\n", SUSPEND_COMMAND,
+        fprintf(stderr, "error: %s exited with status %d\n", command,
             WEXITSTATUS(status));
         return 1;
     }
@@ -85,12 +88,16 @@ parse_options(int argc, char **argv)
 {
     int opt;
     static struct option opts[] = {
-        { "help", no_argument, NULL, 'h' },
+        { "command", required_argument, NULL, 'c' },
+        { "help",    no_argument,       NULL, 'h' },
         { 0, 0, 0, 0 }
     };
 
-    while((opt = getopt_long(argc, argv, "h", opts, NULL)) != -1) {
+    while((opt = getopt_long(argc, argv, "c:h", opts, NULL)) != -1) {
         switch(opt) {
+            case 'c':
+                suspend_cmd = optarg;
+                break;
             case 'h':
                 help(stdout);
                 break;
@@ -219,7 +226,7 @@ main(int argc, char *argv[])
         return EXIT_FAILURE;
     }
 
-    if(do_suspend() != 0) {
+    if(do_suspend(suspend_cmd ? suspend_cmd : SUSPEND_COMMAND) != 0) {
         return EXIT_FAILURE;
     }
 
