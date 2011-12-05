@@ -70,7 +70,7 @@ do_suspend(const char *command)
         execlp(command, command, NULL);
         fprintf(stderr, "error: failed to execute %s: %s\n", command,
                 strerror(errno));
-        _exit(0);
+        _exit(127);
     }
 
     while(wait(&status) != pid);
