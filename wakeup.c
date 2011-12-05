@@ -148,11 +148,39 @@ parse_timespec(int optind, int argc, char **argv)
     return 0;
 }
 
-int
-main(int argc, char *argv[])
+static int
+create_alarm(struct itimerspec *wakeup)
 {
     timer_t id;
 
+    /* init timer */
+    if(timer_create(CLOCK_REALTIME_ALARM, NULL, &id) != 0) {
+        perror("error: failed to create timer");
+        return 1;
+    }
+
+    memset(wakeup, 0, sizeof(struct itimerspec));
+
+    /* init itimerspec */
+    if(clock_gettime(CLOCK_REALTIME_ALARM, &wakeup->it_value)) {
+        perror("error: failed to get time from RTC");
+        return 1;
+    }
+
+    /* set itimerspec to some future time */
+    wakeup->it_value.tv_sec += sec + (min * 60) + (hour * 60 * 60);
+
+    if(timer_settime(id, TIMER_ABSTIME, wakeup, NULL)) {
+        perror("error: failed to set wakeup time");
+        return 1;
+    }
+
+    return 0;
+}
+
+int
+main(int argc, char *argv[])
+{
     struct itimerspec wakeup;
 
     if(argc <= 1) {
@@ -165,45 +193,15 @@ main(int argc, char *argv[])
         exit(1);
     }
 
-    if(hour == 0 && min == 0 && sec == 0)
-    {
+    if(hour == 0 && min == 0 && sec == 0) {
         printf("I don't understand. :<\n");
         printf("try -h or --help for help\n");
         exit(1);
     }
 
-    /* init timer */
-    if(timer_create(CLOCK_REALTIME_ALARM, NULL, &id)) {
-        if(errno == EPERM) {
-            printf("Oops. Insufficent rights, can't do that. :/\n");
-        }
-        perror("");
-        exit(1);
+    if(create_alarm(&wakeup) != 0) {
+        return EXIT_FAILURE;
     }
-
-
-    /* init itimerspec */
-    if(clock_gettime(CLOCK_REALTIME_ALARM, &wakeup.it_value)) {
-        perror("clock_gettime");
-        exit(1);
-    }
-
-    /* set itimerspec to some future time */
-    wakeup.it_value.tv_sec += sec + (min * 60) + (hour * 60 * 60);
-    wakeup.it_value.tv_nsec = 0;
-
-    wakeup.it_interval.tv_sec = 0;
-    wakeup.it_interval.tv_nsec = 0;
-
-    /* set timer */
-    if(timer_settime(id, TIMER_ABSTIME, &wakeup, NULL)) {
-        perror("timer_settime");
-        exit(1);
-    }
-
-    printf("Ok. will wakeup from suspend in: %ld hours %ld min %ld sec\n", hour, min, sec);
-    printf("tick.\n");
-
     do_suspend();
 
     /* never excecutes. needs a signal callback to work */
