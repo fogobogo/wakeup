@@ -32,8 +32,6 @@
 #  define SUSPEND_COMMAND "pm-suspend"
 #endif
 
-static long hour, min, sec;
-
 extern char *program_invocation_short_name;
 
 static void
@@ -96,8 +94,8 @@ parse_options(int argc, char **argv)
     /* optind is set globally */
 }
 
-static long
-parse_timefragment(const char *fragment)
+static int
+parse_timefragment(const char *fragment, long *hour, long *min, long *sec)
 {
     const char *f;
     long accum = 0;
@@ -106,17 +104,17 @@ parse_timefragment(const char *fragment)
         switch(*f) {
             case 'h':
             case 'H':
-                hour += accum;
+                *hour += accum;
                 accum = 0;
                 break;
             case 'm':
             case 'M':
-                min += accum;
+                *min += accum;
                 accum = 0;
                 break;
             case 's':
             case 'S':
-                sec += accum;
+                *sec += accum;
                 accum = 0;
                 break;
             default:
@@ -129,7 +127,7 @@ parse_timefragment(const char *fragment)
                     }
                 } else {
                     fprintf(stderr, "illegal character in format: %c\n", *f);
-                    return -1;
+                    return 1;
                 }
         }
     }
@@ -137,11 +135,13 @@ parse_timefragment(const char *fragment)
     return 0;
 }
 
-static long
-parse_timespec(int optind, int argc, char **argv)
+static int
+parse_timespec(int optind, int argc, char **argv, long *hour, long *min, long *sec)
 {
+    *hour = *min = *sec = 0;
+
     while(optind < argc) {
-        if(parse_timefragment(argv[optind]) < 0) {
+        if(parse_timefragment(argv[optind], hour, min, sec) < 0) {
             fprintf(stderr, "failed to parse time: %s\n", argv[optind]);
             return 1;
         }
@@ -152,7 +152,7 @@ parse_timespec(int optind, int argc, char **argv)
 }
 
 static int
-create_alarm(struct itimerspec *wakeup)
+create_alarm(struct itimerspec *wakeup, long seconds)
 {
     timer_t id;
 
@@ -171,7 +171,7 @@ create_alarm(struct itimerspec *wakeup)
     }
 
     /* set itimerspec to some future time */
-    wakeup->it_value.tv_sec += sec + (min * 60) + (hour * 60 * 60);
+    wakeup->it_value.tv_sec += seconds;
 
     if(timer_settime(id, TIMER_ABSTIME, wakeup, NULL)) {
         perror("error: failed to set wakeup time");
@@ -185,13 +185,14 @@ int
 main(int argc, char *argv[])
 {
     struct itimerspec wakeup;
+    long hour, min, sec;
 
     if(argc <= 1) {
         help(stderr);
     }
 
     parse_options(argc, argv);
-    if(parse_timespec(optind, argc, argv) < 0) {
+    if(parse_timespec(optind, argc, argv, &hour, &min, &sec) != 0) {
         return EXIT_FAILURE;
     }
 
@@ -200,7 +201,7 @@ main(int argc, char *argv[])
         return EXIT_FAILURE;
     }
 
-    if(create_alarm(&wakeup) != 0) {
+    if(create_alarm(&wakeup, (hour * 3600) + (min * 60) + sec) != 0) {
         return EXIT_FAILURE;
     }
     do_suspend();
