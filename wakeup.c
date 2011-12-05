@@ -164,7 +164,7 @@ static int
 parse_timespec(int optind, int argc, char **argv, struct timespec_t *ts)
 {
     while(optind < argc) {
-        if(parse_timefragment(argv[optind], ts) < 0) {
+        if(parse_timefragment(argv[optind], ts) != 0) {
             fprintf(stderr, "failed to parse time: %s\n", argv[optind]);
             return 1;
         }
