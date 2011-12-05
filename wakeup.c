@@ -102,14 +102,17 @@ parse_timefragment(const char *fragment)
     for(f = fragment; *f != '\0'; f++) {
         switch(*f) {
             case 'h':
+            case 'H':
                 hour += accum;
                 accum = 0;
                 break;
             case 'm':
+            case 'M':
                 min += accum;
                 accum = 0;
                 break;
             case 's':
+            case 'S':
                 sec += accum;
                 accum = 0;
                 break;
