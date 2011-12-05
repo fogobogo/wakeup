@@ -65,7 +65,8 @@ do_suspend(void)
 
     if(pid == 0) {
         execlp(SUSPEND_COMMAND, SUSPEND_COMMAND, NULL);
-        fprintf(stderr, "error: exec: %s\n", strerror(errno));
+        fprintf(stderr, "error: failed to execute %s: %s\n", SUSPEND_COMMAND,
+                strerror(errno));
         _exit(0);
     }
 
