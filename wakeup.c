@@ -185,18 +185,18 @@ main(int argc, char *argv[])
 
     if(argc <= 1) {
         help(argv[0]);
-        exit(1);
+        return EXIT_FAILURE;
     }
 
     parse_options(argc, argv);
     if(parse_timespec(optind, argc, argv) < 0) {
-        exit(1);
+        return EXIT_FAILURE;
     }
 
     if(hour == 0 && min == 0 && sec == 0) {
         printf("I don't understand. :<\n");
         printf("try -h or --help for help\n");
-        exit(1);
+        return EXIT_FAILURE;
     }
 
     if(create_alarm(&wakeup) != 0) {
@@ -207,7 +207,7 @@ main(int argc, char *argv[])
     /* never excecutes. needs a signal callback to work */
     printf("tock.\n");
 
-    return 0;
+    return EXIT_SUCCESS;
 }
 
 /* vim: set et ts=4 sw=4: */
