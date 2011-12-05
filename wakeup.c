@@ -225,19 +225,19 @@ main(int argc, char *argv[])
     memset(&wakeup, 0, sizeof(struct itimerspec));
 
     if(parse_options(argc, argv) != 0) {
-        return EXIT_FAILURE;
+        return 1;
     }
 
     if(parse_timespec(optind, argc, argv, &ts) != 0) {
-        return EXIT_FAILURE;
+        return 2;
     }
 
     if(create_alarm(&wakeup, &ts) != 0) {
-        return EXIT_FAILURE;
+        return 3;
     }
 
     if(do_suspend(suspend_cmd ? suspend_cmd : SUSPEND_COMMAND) != 0) {
-        return EXIT_FAILURE;
+        return 4;
     }
 
     return EXIT_SUCCESS;
