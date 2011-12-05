@@ -34,14 +34,18 @@
 
 static long hour, min, sec;
 
+extern char *program_invocation_short_name;
+
 static void
-help(char *name)
+help(FILE *stream)
 {
-    printf("usage: %s timespec\n\n", name);
-    printf("  -h, --help        display this help and exit\n\n");
-    printf("example: %s 1h20m30s\n", name);
-    printf("will (should) wake up the system from suspend in\n");
-    printf("1 hour 20 minutes and 30 seconds.\n");
+    fprintf(stream, "usage: %s timespec\n\n", program_invocation_short_name);
+    fprintf(stream, "  -h, --help        display this help and exit\n\n");
+    fprintf(stream, "example: %s 1h20m30s\n", program_invocation_short_name);
+    fprintf(stream, "will (should) wake up the system from suspend in\n");
+    fprintf(stream, "1 hour 20 minutes and 30 seconds.\n");
+
+    exit(stream == stderr ? EXIT_FAILURE : EXIT_SUCCESS);
 }
 
 static void
@@ -81,8 +85,7 @@ parse_options(int argc, char **argv)
     while((opt = getopt_long(argc, argv, "h", opts, NULL)) != -1) {
         switch(opt) {
             case 'h':
-                help(argv[0]);
-                exit(1);
+                help(stdout);
                 break;
             default:
             case '?':
@@ -184,8 +187,7 @@ main(int argc, char *argv[])
     struct itimerspec wakeup;
 
     if(argc <= 1) {
-        help(argv[0]);
-        return EXIT_FAILURE;
+        help(stderr);
     }
 
     parse_options(argc, argv);
@@ -194,8 +196,7 @@ main(int argc, char *argv[])
     }
 
     if(hour == 0 && min == 0 && sec == 0) {
-        printf("I don't understand. :<\n");
-        printf("try -h or --help for help\n");
+        fprintf(stderr, "error: no timespec specified (use -h or --help for help)\n");
         return EXIT_FAILURE;
     }
 
