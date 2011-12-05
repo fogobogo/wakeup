@@ -136,12 +136,8 @@ parse_timefragment(const char *fragment, long *hour, long *min, long *sec)
                 break;
             default:
                 if(isdigit(*f)) {
+                    accum *= 10;
                     accum += (*f - 48);
-
-                    /* look ahead */
-                    if(isdigit(f[1])) {
-                        accum *= 10;
-                    }
                 } else {
                     fprintf(stderr, "illegal character in format: %c\n", *f);
                     return 1;
