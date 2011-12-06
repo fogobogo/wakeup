@@ -180,9 +180,12 @@ parse_timespec(int optind, int argc, char **argv, struct timespec_t *ts)
 }
 
 static int
-create_alarm(struct itimerspec *wakeup, struct timespec_t *ts)
+create_alarm(struct timespec_t *ts)
 {
+    struct itimerspec wakeup;
     timer_t timerid;
+
+    memset(&wakeup, 0, sizeof(struct itimerspec));
 
     /* init timer */
     if(timer_create(CLOCK_REALTIME_ALARM, NULL, &timerid) != 0) {
@@ -191,15 +194,15 @@ create_alarm(struct itimerspec *wakeup, struct timespec_t *ts)
     }
 
     /* init itimerspec */
-    if(clock_gettime(CLOCK_REALTIME_ALARM, &wakeup->it_value)) {
+    if(clock_gettime(CLOCK_REALTIME_ALARM, &wakeup.it_value)) {
         perror("error: failed to get time from RTC");
         return 1;
     }
 
     /* set itimerspec to some future time */
-    wakeup->it_value.tv_sec += timespec_to_seconds(ts);
+    wakeup.it_value.tv_sec += timespec_to_seconds(ts);
 
-    if(timer_settime(timerid, TIMER_ABSTIME, wakeup, NULL)) {
+    if(timer_settime(timerid, TIMER_ABSTIME, &wakeup, NULL)) {
         perror("error: failed to set wakeup time");
         return 1;
     }
@@ -213,7 +216,6 @@ create_alarm(struct itimerspec *wakeup, struct timespec_t *ts)
 int
 main(int argc, char *argv[])
 {
-    struct itimerspec wakeup;
     struct timespec_t ts;
 
     if(argc <= 1) {
@@ -222,7 +224,6 @@ main(int argc, char *argv[])
     }
 
     memset(&ts, 0, sizeof(struct timespec));
-    memset(&wakeup, 0, sizeof(struct itimerspec));
 
     if(parse_options(argc, argv) != 0) {
         return 1;
@@ -232,7 +233,7 @@ main(int argc, char *argv[])
         return 2;
     }
 
-    if(create_alarm(&wakeup, &ts) != 0) {
+    if(create_alarm(&ts) != 0) {
         return 3;
     }
 
