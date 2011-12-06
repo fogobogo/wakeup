@@ -223,7 +223,7 @@ main(int argc, char *argv[])
         help(stderr);
     }
 
-    memset(&ts, 0, sizeof(struct timespec));
+    memset(&ts, 0, sizeof(struct timespec_t));
 
     if(parse_options(argc, argv) != 0) {
         return 1;
