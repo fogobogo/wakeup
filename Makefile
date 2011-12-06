@@ -1,5 +1,5 @@
-CFLAGS  := -Wall -Wextra -pedantic -Os $(CFLAGS)
-LDFLAGS := -lrt $(LDFLAGS)
+CFLAGS  := -ansi -Wall -Wextra -pedantic -Os $(CFLAGS) -pthread
+LDFLAGS := -lrt $(LDFLAGS) -pthread
 
 ifndef PREFIX
 	PREFIX = /usr/local

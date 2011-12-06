@@ -20,6 +20,7 @@
 #include <errno.h>
 #include <inttypes.h>
 #include <getopt.h>
+#include <pthread.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -42,6 +43,7 @@ struct timespec_t {
 
 extern char *program_invocation_short_name;
 static const char *suspend_cmd;
+static const char *event_cmd;
 static long epochtime;
 
 static long
@@ -56,15 +58,16 @@ help(FILE *stream)
     fprintf(stream, "usage: %s <timespec>\n\n"
             "  -a, --at SEC          specify an absolute time in seconds from epoch\n"
             "  -c, --command CMD     execute CMD instead of default '%s'\n"
+            "  -e, --event CMD       execute CMD after wakeup\n"
             "  -h, --help            display this help and exit\n\n"
             "timespec can be any combination of hours, minutes, and seconds\n"
-            "specified by hH, mM, and sS, respecitively.\n\n"
-            "Examples:\n"
+            "specified by hH, mM, and sS, respecitively.\n\n",
+            program_invocation_short_name,
+            SUSPEND_COMMAND);
+    fprintf(stream, "Examples:\n"
             "    %s 1h 20m 42S                   # 1 hour, 20 minutes, 42 seconds\n"
             "    %s 1h20M 2h                     # 3 hours, 20 minutes\n"
             "    %s -a $(date -d tomorrow +%%s)   # 24 hours\n",
-            program_invocation_short_name,
-            SUSPEND_COMMAND,
             program_invocation_short_name,
             program_invocation_short_name,
             program_invocation_short_name);
@@ -108,17 +111,21 @@ parse_options(int argc, char **argv)
     static struct option opts[] = {
         { "at",      no_argument,       NULL, 'a' },
         { "command", required_argument, NULL, 'c' },
+        { "event",   required_argument, NULL, 'e' },
         { "help",    no_argument,       NULL, 'h' },
         { 0, 0, 0, 0 }
     };
 
-    while((opt = getopt_long(argc, argv, "ac:h", opts, NULL)) != -1) {
+    while((opt = getopt_long(argc, argv, "ac:e:h", opts, NULL)) != -1) {
         switch(opt) {
             case 'a':
                 epochtime = 1;
                 break;
             case 'c':
                 suspend_cmd = optarg;
+                break;
+            case 'e':
+                event_cmd = optarg;
                 break;
             case 'h':
                 help(stdout);
@@ -218,16 +225,36 @@ parse_timespec(int optind, int argc, char **argv, struct timespec_t *ts)
     return 0;
 }
 
+static void
+signal_event(union sigval sival)
+{
+    execl("/bin/sh", sival.sival_ptr, "-c", sival.sival_ptr, NULL);
+    fprintf(stderr, "error: failed to execute command: %s: %s\n",
+            (const char *)sival.sival_ptr, strerror(errno));
+    exit(1);
+}
+
 static int
 create_alarm(struct timespec_t *ts)
 {
     struct itimerspec wakeup;
+    struct sigevent sigev;
+    union sigval sigv;
     timer_t timerid;
 
     memset(&wakeup, 0, sizeof(struct itimerspec));
 
+    if(event_cmd) {
+        memset(&sigev, 0, sizeof(struct sigevent));
+        sigv.sival_ptr = (void *)event_cmd;
+        sigev.sigev_notify = SIGEV_THREAD;
+        sigev.sigev_notify_function = signal_event;
+        sigev.sigev_value = sigv;
+    }
+
     /* init timer */
-    if(timer_create(CLOCK_REALTIME_ALARM, NULL, &timerid) != 0) {
+    if(timer_create(CLOCK_REALTIME_ALARM, event_cmd ? &sigev : NULL,
+                &timerid) != 0) {
         perror("error: failed to create timer");
         return 1;
     }
@@ -280,6 +307,7 @@ main(int argc, char *argv[])
         return 4;
     }
 
+    pthread_exit(NULL);
     return EXIT_SUCCESS;
 }
 
