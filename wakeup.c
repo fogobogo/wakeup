@@ -40,6 +40,7 @@ struct timespec_t {
 
 extern char *program_invocation_short_name;
 static const char *suspend_cmd;
+static const char *user_cmd = NULL;
 
 static long
 timespec_to_seconds(struct timespec_t *ts)
@@ -52,6 +53,7 @@ help(FILE *stream)
 {
     fprintf(stream, "usage: %s <timespec>\n\n"
             "  -c, --command CMD     execute CMD instead of default '%s'\n"
+            "  -e, --execute CMD     execute CMD _after_ waking up\n"
             "  -h, --help            display this help and exit\n\n"
             "timespec can be any combination of hours, minutes, and seconds\n"
             "specified by hH, mM, and sS, respecitively.\n\n"
@@ -92,6 +94,8 @@ do_suspend(const char *command)
         return 1;
     }
 
+    fprintf(stdout, "tick.\n");
+
     return 0;
 }
 
@@ -101,14 +105,18 @@ parse_options(int argc, char **argv)
     int opt;
     static struct option opts[] = {
         { "command", required_argument, NULL, 'c' },
+        { "execute", required_argument, NULL, 'e' },
         { "help",    no_argument,       NULL, 'h' },
         { 0, 0, 0, 0 }
     };
 
-    while((opt = getopt_long(argc, argv, "c:h", opts, NULL)) != -1) {
+    while((opt = getopt_long(argc, argv, "c:e:h", opts, NULL)) != -1) {
         switch(opt) {
             case 'c':
                 suspend_cmd = optarg;
+                break;
+            case 'e':
+                user_cmd = optarg;
                 break;
             case 'h':
                 help(stdout);
@@ -180,12 +188,12 @@ parse_timespec(int optind, int argc, char **argv, struct timespec_t *ts)
 }
 
 static int
-create_alarm(struct itimerspec *wakeup, struct timespec_t *ts)
+create_alarm(struct itimerspec *wakeup, struct timespec_t *ts, struct sigevent sigev)
 {
     timer_t timerid;
 
     /* init timer */
-    if(timer_create(CLOCK_REALTIME_ALARM, NULL, &timerid) != 0) {
+    if(timer_create(CLOCK_REALTIME_ALARM, &sigev, &timerid) != 0) {
         perror("error: failed to create timer");
         return 1;
     }
@@ -210,19 +218,35 @@ create_alarm(struct itimerspec *wakeup, struct timespec_t *ts)
     return 0;
 }
 
+static void
+signal_function(union sigval sival)
+{
+    fprintf(stdout, "tock.\n");
+    /* houston, we are having a problem */
+    /*
+    system((char *)sival.sival_ptr);
+    */
+    exit(0);
+}
+
+
 int
 main(int argc, char *argv[])
 {
     struct itimerspec wakeup;
     struct timespec_t ts;
+    struct sigevent sigev;
+    union sigval sival;
 
     if(argc <= 1) {
         fprintf(stderr, "error: no timespec specified (use -h for help)\n");
         help(stderr);
     }
 
-    memset(&ts, 0, sizeof(struct timespec));
+    memset(&ts, 0, sizeof(struct timespec_t));
     memset(&wakeup, 0, sizeof(struct itimerspec));
+    memset(&sigev, 0, sizeof(struct sigevent));
+
 
     if(parse_options(argc, argv) != 0) {
         return EXIT_FAILURE;
@@ -232,7 +256,13 @@ main(int argc, char *argv[])
         return EXIT_FAILURE;
     }
 
-    if(create_alarm(&wakeup, &ts) != 0) {
+    sival.sival_ptr = (void *)user_cmd;
+    /* init a signal event */
+    sigev.sigev_notify = SIGEV_THREAD;
+    sigev.sigev_notify_function = signal_function;
+    sigev.sigev_value = sival;
+
+    if(create_alarm(&wakeup, &ts, sigev) != 0) {
         return EXIT_FAILURE;
     }
 
