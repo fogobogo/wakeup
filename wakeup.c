@@ -97,6 +97,8 @@ do_suspend(const char *command)
         return 1;
     }
 
+    fprintf(stdout, "tick.\n");
+
     return 0;
 }
 
@@ -108,6 +110,7 @@ parse_options(int argc, char **argv)
         { "at",      no_argument,       NULL, 'a' },
         { "command", required_argument, NULL, 'c' },
         { "event",   required_argument, NULL, 'e' },
+        { "execute", required_argument, NULL, 'e' },
         { "help",    no_argument,       NULL, 'h' },
         { 0, 0, 0, 0 }
     };
@@ -277,6 +280,8 @@ int
 main(int argc, char *argv[])
 {
     struct timespec_t ts;
+    struct sigevent sigev;
+    union sigval sival;
 
     if(argc <= 1) {
         fprintf(stderr, "error: no timespec specified (use -h for help)\n");
@@ -295,6 +300,14 @@ main(int argc, char *argv[])
 
     if(create_alarm(&ts) != 0) {
         return 3;
+    sival.sival_ptr = (void *)user_cmd;
+    /* init a signal event */
+    sigev.sigev_notify = SIGEV_THREAD;
+    sigev.sigev_notify_function = signal_function;
+    sigev.sigev_value = sival;
+
+    if(create_alarm(&wakeup, &ts, sigev) != 0) {
+        return EXIT_FAILURE;
     }
 
     if(do_suspend(suspend_cmd ? suspend_cmd : SUSPEND_COMMAND) != 0) {
