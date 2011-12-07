@@ -1,4 +1,4 @@
-CFLAGS  := -ansi -Wall -Wextra -pedantic -Os $(CFLAGS) -pthread
+CFLAGS  := -ansi -Wall -Wextra -pedantic -Os $(CFLAGS) -ggdb
 LDFLAGS := -lrt $(LDFLAGS) -pthread
 
 ifndef PREFIX

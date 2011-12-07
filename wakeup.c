@@ -37,10 +37,10 @@ struct timespec_t {
     long sec;
 };
 
-extern char *program_invocation_short_name;
-static const char *suspend_cmd;
-static const char *event_cmd;
-static long epochtime;
+extern char *program_invocation_short_name = NULL;
+static const char *suspend_cmd = NULL;
+static const char *event_cmd = NULL;
+static long epochtime = 0;
 
 static long
 timespec_to_seconds(struct timespec_t *ts)
@@ -190,7 +190,7 @@ parse_timespec(int optind, int argc, char **argv, struct timespec_t *ts)
             return 1;
         }
 
-        if(time(&now) == (time_t)-1) {
+        if(time((time_t *)&now) == (time_t)-1) {
             fprintf(stderr, "error: failed to get current time\n");
             return 1;
         }
@@ -205,7 +205,9 @@ parse_timespec(int optind, int argc, char **argv, struct timespec_t *ts)
         diff %= 3600;
         ts->min = diff / 60;
         ts->sec = diff % 60;
-    } else {
+    } 
+    
+    else {
         while(optind < argc) {
             if(parse_timefragment(argv[optind], ts) != 0) {
                 fprintf(stderr, "error: failed to parse time: %s\n", argv[optind]);
@@ -226,6 +228,16 @@ parse_timespec(int optind, int argc, char **argv, struct timespec_t *ts)
 static void
 signal_event(union sigval sival)
 {
+    /* don't execute anything as root. still sucks since the env is still the root one 
+     * aaaaannnnd the signal event triggers a few times before that takes effect */
+    /* TODO: add error checks, generally find a better way */
+    printf("uid %d\n", getuid());
+    setgid(100);
+    setuid(1000);
+    printf("uid %d\n", getuid());
+
+    fprintf(stdout, "tock.\n");
+
     execl("/bin/sh", sival.sival_ptr, "-c", sival.sival_ptr, NULL);
     fprintf(stderr, "error: failed to execute command: %s: %s\n",
             (const char *)sival.sival_ptr, strerror(errno));
@@ -271,8 +283,13 @@ create_alarm(struct timespec_t *ts)
         return 1;
     }
 
-    printf("timer set for wakeup in: %ld hours %ld min %ld sec\n",
+    fprintf(stdout, "timer set for wakeup in: %ld hours %ld min %ld sec\n",
             ts->hour, ts->min, ts->sec);
+
+    fprintf(stdout, "tick.\n");
+    if(event_cmd == NULL) {
+        fprintf(stdout, "tock.\n");
+    }
 
     return 0;
 }
@@ -280,8 +297,6 @@ int
 main(int argc, char *argv[])
 {
     struct timespec_t ts;
-    struct sigevent sigev;
-    union sigval sival;
 
     if(argc <= 1) {
         fprintf(stderr, "error: no timespec specified (use -h for help)\n");
@@ -300,14 +315,6 @@ main(int argc, char *argv[])
 
     if(create_alarm(&ts) != 0) {
         return 3;
-    sival.sival_ptr = (void *)user_cmd;
-    /* init a signal event */
-    sigev.sigev_notify = SIGEV_THREAD;
-    sigev.sigev_notify_function = signal_function;
-    sigev.sigev_value = sival;
-
-    if(create_alarm(&wakeup, &ts, sigev) != 0) {
-        return EXIT_FAILURE;
     }
 
     if(do_suspend(suspend_cmd ? suspend_cmd : SUSPEND_COMMAND) != 0) {
