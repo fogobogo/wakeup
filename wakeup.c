@@ -88,7 +88,7 @@ do_suspend(const char *command)
     }
 
     if(pid == 0) {
-        execlp(command, command, NULL);
+        execlp("/bin/sh", command, "-c", command, NULL);
         fprintf(stderr, "error: failed to execute %s: %s\n", command,
                 strerror(errno));
         _exit(127);
