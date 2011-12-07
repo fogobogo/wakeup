@@ -37,7 +37,7 @@ struct timespec_t {
     long sec;
 };
 
-extern char *program_invocation_short_name = NULL;
+extern char *program_invocation_short_name;
 static const char *suspend_cmd = NULL;
 static const char *event_cmd = NULL;
 static long epochtime = 0;
