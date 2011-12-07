@@ -164,7 +164,7 @@ parse_timefragment(const char *fragment, struct timespec_t *ts)
             default:
                 if(isdigit(*f)) {
                     accum *= 10;
-                    accum += (*f - 48);
+                    accum += *f - '0';
                 } else {
                     fprintf(stderr, "illegal character in format: %c\n", *f);
                     return 1;
