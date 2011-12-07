@@ -97,8 +97,6 @@ do_suspend(const char *command)
         return 1;
     }
 
-    fprintf(stdout, "tick.\n");
-
     return 0;
 }
 
@@ -275,25 +273,10 @@ create_alarm(struct timespec_t *ts)
 
     return 0;
 }
-
-static void
-signal_function(union sigval sival)
-{
-    fprintf(stdout, "tock.\n");
-    /* houston, we are having a problem */
-    /*
-    system((char *)sival.sival_ptr);
-    */
-    exit(0);
-}
-
-
 int
 main(int argc, char *argv[])
 {
     struct timespec_t ts;
-    struct sigevent sigev;
-    union sigval sival;
 
     if(argc <= 1) {
         fprintf(stderr, "error: no timespec specified (use -h for help)\n");
