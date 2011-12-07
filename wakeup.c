@@ -18,14 +18,12 @@
 #define _GNU_SOURCE
 #include <ctype.h>
 #include <errno.h>
-#include <inttypes.h>
 #include <getopt.h>
 #include <pthread.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/time.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <time.h>
@@ -182,27 +180,26 @@ parse_timespec(int optind, int argc, char **argv, struct timespec_t *ts)
 {
     if(epochtime) {
         char *endptr;
-        intmax_t epoch, diff;
-        time_t now;
+        int64_t now, epoch, diff;
 
-        epoch = strtoimax(argv[optind], &endptr, 10);
-        if(*endptr != '\0') {
-            fprintf(stderr, "failed to parse absolute time: %s\n", argv[optind]);
+        epoch = strtoll(argv[optind], &endptr, 10);
+        if(*endptr != '\0' || errno == ERANGE) {
+            fprintf(stderr, "failed to parse absolute time: %s: %s",
+                    argv[optind], strerror(errno == ERANGE ? ERANGE : EINVAL));
             return 1;
         }
 
-        now = time(NULL);
-        if(now == (time_t)-1) {
+        if(time(&now) == (time_t)-1) {
             fprintf(stderr, "error: failed to get current time\n");
             return 1;
         }
 
-        if(epoch < (intmax_t)now) {
+        if(epoch < now) {
             fprintf(stderr, "error: cannot specify a time in the past\n");
             return 1;
         }
 
-        diff = epoch - (intmax_t)now;
+        diff = epoch - now;
         ts->hour = diff / 3600;
         diff %= 3600;
         ts->min = diff / 60;
