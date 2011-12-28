@@ -253,8 +253,6 @@ create_alarm(struct timespec_t *ts)
     union sigval sigv;
     timer_t timerid;
 
-    char *env;
-
     memset(&wakeup, 0, sizeof(struct itimerspec));
 
     if(event.cmd) {
