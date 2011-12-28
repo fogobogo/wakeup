@@ -39,8 +39,6 @@ struct timespec_t {
 
 struct event_t {
     const char *cmd;
-    uid_t uid;
-    gid_t gid;
 };
 
 static struct event_t event;
@@ -238,26 +236,6 @@ signal_event(union sigval sival)
     struct event_t *event;
 
     event = sival.sival_ptr;
-    /* don't execute anything as root. still sucks since the env is still the root one 
-     * aaaaannnnd the signal event triggers a few times before that takes effect */
-    /* TODO: fix $HOME */
-
-    /*
-    printf("uid %d\n", getuid());
-    printf("gid %d\n", getgid());
-    */
-    if(setgid(event->uid) != 0) {
-        fprintf(stderr, "%s", strerror(errno));
-    }
-
-    if(setgid(event->gid) != 0) {
-        fprintf(stderr, "%s", strerror(errno));
-    }
-
-    /*
-    printf("uid %d\n", getuid());
-    printf("gid %d\n", getgid());
-    */
 
     fprintf(stdout, "tock.\n");
 
@@ -281,20 +259,6 @@ create_alarm(struct timespec_t *ts)
 
     if(event.cmd) {
         memset(&sigev, 0, sizeof(struct sigevent));
-
-        /* if run with sudo restore uid/gid on event */
-        env = getenv("SUDO_UID");
-        if(env != NULL) {
-            event.uid = strtol(env, NULL, 10);
-        }
-        else { event.uid = getuid(); }
-
-        env = getenv("SUDO_GID");
-        if(env != NULL) {
-            event.gid = strtol(env, NULL, 10);
-        }
-        else { event.gid = getgid(); }
-
         sigv.sival_ptr = (void *)&event;
         sigev.sigev_notify = SIGEV_THREAD;
         sigev.sigev_notify_function = signal_event;
