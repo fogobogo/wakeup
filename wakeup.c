@@ -37,9 +37,16 @@ struct timespec_t {
     long sec;
 };
 
-extern char *program_invocation_short_name;
+struct event_t {
+    const char *cmd;
+    uid_t uid;
+    gid_t gid;
+};
+
+static struct event_t event;
+
+char *program_invocation_short_name;
 static const char *suspend_cmd = NULL;
-static const char *event_cmd = NULL;
 static long epochtime = 0;
 
 static long
@@ -53,8 +60,8 @@ help(FILE *stream)
 {
     fprintf(stream, "usage: %s <timespec>\n\n"
             "  -a, --at SEC          specify an absolute time in seconds from epoch\n"
-            "  -c, --command CMD     execute CMD instead of default '%s'\n"
-            "  -e, --event CMD       execute CMD after wakeup\n"
+            "  -c, --command \"CMD\"   execute CMD instead of default '%s'\n"
+            "  -e, --event \"CMD\"     execute CMD after wakeup\n"
             "  -h, --help            display this help and exit\n\n"
             "timespec can be any combination of hours, minutes, and seconds\n"
             "specified by hH, mM, and sS, respecitively.\n\n",
@@ -124,7 +131,7 @@ parse_options(int argc, char **argv)
                 suspend_cmd = optarg;
                 break;
             case 'e':
-                event_cmd = optarg;
+                event.cmd = optarg;
                 break;
             case 'h':
                 help(stdout);
@@ -228,19 +235,35 @@ parse_timespec(int optind, int argc, char **argv, struct timespec_t *ts)
 static void
 signal_event(union sigval sival)
 {
+    struct event_t *event;
+
+    event = sival.sival_ptr;
     /* don't execute anything as root. still sucks since the env is still the root one 
      * aaaaannnnd the signal event triggers a few times before that takes effect */
-    /* TODO: add error checks, generally find a better way */
+    /* TODO: fix $HOME */
+
+    /*
     printf("uid %d\n", getuid());
-    setgid(100);
-    setuid(1000);
+    printf("gid %d\n", getgid());
+    */
+    if(setgid(event->uid) != 0) {
+        fprintf(stderr, "%s", strerror(errno));
+    }
+
+    if(setgid(event->gid) != 0) {
+        fprintf(stderr, "%s", strerror(errno));
+    }
+
+    /*
     printf("uid %d\n", getuid());
+    printf("gid %d\n", getgid());
+    */
 
     fprintf(stdout, "tock.\n");
 
-    execl("/bin/sh", sival.sival_ptr, "-c", sival.sival_ptr, NULL);
+    execl("/bin/sh", event->cmd, "-c", event->cmd, NULL);
     fprintf(stderr, "error: failed to execute command: %s: %s\n",
-            (const char *)sival.sival_ptr, strerror(errno));
+            (const char *)event->cmd, strerror(errno));
     exit(1);
 }
 
@@ -252,18 +275,34 @@ create_alarm(struct timespec_t *ts)
     union sigval sigv;
     timer_t timerid;
 
+    char *env;
+
     memset(&wakeup, 0, sizeof(struct itimerspec));
 
-    if(event_cmd) {
+    if(event.cmd) {
         memset(&sigev, 0, sizeof(struct sigevent));
-        sigv.sival_ptr = (void *)event_cmd;
+
+        /* if run with sudo restore uid/gid on event */
+        env = getenv("SUDO_UID");
+        if(env != NULL) {
+            event.uid = strtol(env, NULL, 10);
+        }
+        else { event.uid = getuid(); }
+
+        env = getenv("SUDO_GID");
+        if(env != NULL) {
+            event.gid = strtol(env, NULL, 10);
+        }
+        else { event.gid = getgid(); }
+
+        sigv.sival_ptr = (void *)&event;
         sigev.sigev_notify = SIGEV_THREAD;
         sigev.sigev_notify_function = signal_event;
         sigev.sigev_value = sigv;
     }
 
     /* init timer */
-    if(timer_create(CLOCK_REALTIME_ALARM, event_cmd ? &sigev : NULL,
+    if(timer_create(CLOCK_REALTIME_ALARM, event.cmd ? &sigev : NULL,
                 &timerid) != 0) {
         perror("error: failed to create timer");
         return 1;
@@ -287,7 +326,7 @@ create_alarm(struct timespec_t *ts)
             ts->hour, ts->min, ts->sec);
 
     fprintf(stdout, "tick.\n");
-    if(event_cmd == NULL) {
+    if(event.cmd == NULL) {
         fprintf(stdout, "tock.\n");
     }
 
