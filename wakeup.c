@@ -41,7 +41,7 @@ struct event_t {
     const char *cmd;
 };
 
-static struct event_t event;
+static struct event_t event = { NULL };
 
 char *program_invocation_short_name;
 static const char *suspend_cmd = NULL;
