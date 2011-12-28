@@ -43,7 +43,7 @@ struct event_t {
 
 static struct event_t event = { NULL };
 
-char *program_invocation_short_name;
+char *program_invocation_short_name = "wakeup";
 static const char *suspend_cmd = NULL;
 static long epochtime = 0;
 
