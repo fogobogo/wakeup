@@ -43,7 +43,6 @@ struct event_t {
 
 static struct event_t event = { NULL };
 
-char *program_invocation_short_name = "wakeup";
 static const char *suspend_cmd = NULL;
 static long epochtime = 0;
 
@@ -54,7 +53,7 @@ timespec_to_seconds(struct timespec_t *ts)
 }
 
 static void
-help(FILE *stream)
+help(FILE *stream, char *name)
 {
     fprintf(stream, "usage: %s <timespec>\n\n"
             "  -a, --at SEC          specify an absolute time in seconds from epoch\n"
@@ -63,15 +62,15 @@ help(FILE *stream)
             "  -h, --help            display this help and exit\n\n"
             "timespec can be any combination of hours, minutes, and seconds\n"
             "specified by hH, mM, and sS, respecitively.\n\n",
-            program_invocation_short_name,
+            name,
             SUSPEND_COMMAND);
     fprintf(stream, "Examples:\n"
             "    %s 1h 20m 42S                   # 1 hour, 20 minutes, 42 seconds\n"
             "    %s 1h20M 2h                     # 3 hours, 20 minutes\n"
             "    %s -a $(date -d tomorrow +%%s)   # 24 hours\n",
-            program_invocation_short_name,
-            program_invocation_short_name,
-            program_invocation_short_name);
+            name,
+            name,
+            name);
 
     exit(stream == stderr ? EXIT_FAILURE : EXIT_SUCCESS);
 }
@@ -132,7 +131,7 @@ parse_options(int argc, char **argv)
                 event.cmd = optarg;
                 break;
             case 'h':
-                help(stdout);
+                help(stdout, argv[0]);
                 break;
             default:
             case '?':
@@ -301,7 +300,7 @@ main(int argc, char *argv[])
 
     if(argc <= 1) {
         fprintf(stderr, "error: no timespec specified (use -h for help)\n");
-        help(stderr);
+        help(stderr, argv[0]);
     }
 
     memset(&ts, 0, sizeof(struct timespec_t));
