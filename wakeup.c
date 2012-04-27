@@ -41,32 +41,34 @@ struct event_t {
     const char *cmd;
 };
 
-static struct event_t event = { NULL };
+static struct event_t event;
 
-static const char *suspend_cmd = NULL;
-static long epochtime = 0;
+static const char *suspend_cmd;
+static long epochtime;
 
+/* convert hours and minutes to seconds */
 static long
 timespec_to_seconds(struct timespec_t *ts)
 {
     return (ts->hour * 3600) + (ts->min * 60) + ts->sec;
 }
 
+/* printf the help message */
 static void
 help(FILE *stream, char *name)
 {
-    fprintf(stream, "usage: %s <timespec>\n\n"
+    fprintf(stream, "Usage: %s [time]\n\n"
             "  -a, --at SEC          specify an absolute time in seconds from epoch\n"
             "  -c, --command \"CMD\"   execute CMD instead of default '%s'\n"
             "  -e, --event \"CMD\"     execute CMD after wakeup\n"
             "  -h, --help            display this help and exit\n\n"
-            "timespec can be any combination of hours, minutes, and seconds\n"
+            "time can be any combination of hours, minutes, and seconds\n"
             "specified by hH, mM, and sS, respecitively.\n\n",
             name,
             SUSPEND_COMMAND);
     fprintf(stream, "Examples:\n"
-            "    %s 1h 20m 42S                   # 1 hour, 20 minutes, 42 seconds\n"
-            "    %s 1h20M 2h                     # 3 hours, 20 minutes\n"
+            "    %s 1h 20m 42S                    # 1 hour, 20 minutes, 42 seconds\n"
+            "    %s 1h20M 2h                      # 3 hours, 20 minutes\n"
             "    %s -a $(date -d tomorrow +%%s)   # 24 hours\n",
             name,
             name,
@@ -75,6 +77,7 @@ help(FILE *stream, char *name)
     exit(stream == stderr ? EXIT_FAILURE : EXIT_SUCCESS);
 }
 
+/* execute the suspend cmd */
 static int
 do_suspend(const char *command)
 {
@@ -106,6 +109,7 @@ do_suspend(const char *command)
     return 0;
 }
 
+/* parse command line args */
 static int
 parse_options(int argc, char **argv)
 {
@@ -113,7 +117,6 @@ parse_options(int argc, char **argv)
     static struct option opts[] = {
         { "at",      no_argument,       NULL, 'a' },
         { "command", required_argument, NULL, 'c' },
-        { "event",   required_argument, NULL, 'e' },
         { "execute", required_argument, NULL, 'e' },
         { "help",    no_argument,       NULL, 'h' },
         { 0, 0, 0, 0 }
@@ -143,6 +146,7 @@ parse_options(int argc, char **argv)
     return 0;
 }
 
+/* split up the time argument given e.g. 4h15m30s into individual variables */
 static int
 parse_timefragment(const char *fragment, struct timespec_t *ts)
 {
@@ -180,6 +184,7 @@ parse_timefragment(const char *fragment, struct timespec_t *ts)
     return 0;
 }
 
+
 static int
 parse_timespec(int optind, int argc, char **argv, struct timespec_t *ts)
 {
@@ -194,6 +199,7 @@ parse_timespec(int optind, int argc, char **argv, struct timespec_t *ts)
             return 1;
         }
 
+        /* get the current time */
         if(time((time_t *)&now) == (time_t)-1) {
             fprintf(stderr, "error: failed to get current time\n");
             return 1;
@@ -229,6 +235,7 @@ parse_timespec(int optind, int argc, char **argv, struct timespec_t *ts)
     return 0;
 }
 
+/* signal callback. gets executed onde the timer triggers */
 static void
 signal_event(union sigval sival)
 {
@@ -244,6 +251,7 @@ signal_event(union sigval sival)
     exit(1);
 }
 
+/* set the timer */
 static int
 create_alarm(struct timespec_t *ts)
 {
@@ -254,6 +262,7 @@ create_alarm(struct timespec_t *ts)
 
     memset(&wakeup, 0, sizeof(struct itimerspec));
 
+    /* if we have a command that shall be exexuted, hook it up to the signal event */
     if(event.cmd) {
         memset(&sigev, 0, sizeof(struct sigevent));
         sigv.sival_ptr = (void *)&event;
@@ -283,9 +292,11 @@ create_alarm(struct timespec_t *ts)
         return 1;
     }
 
+    /* informational message */
     fprintf(stdout, "timer set for wakeup in: %ld hours %ld min %ld sec\n",
             ts->hour, ts->min, ts->sec);
 
+    /* tick, tock makes the clock */
     fprintf(stdout, "tick.\n");
     if(event.cmd == NULL) {
         fprintf(stdout, "tock.\n");
@@ -293,6 +304,8 @@ create_alarm(struct timespec_t *ts)
 
     return 0;
 }
+
+
 int
 main(int argc, char *argv[])
 {
